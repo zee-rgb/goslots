@@ -22,7 +22,7 @@ func GetName() string {
 func GetBet(balance uint) uint {
 	var bet uint
 
-	for true {
+	for {
 		fmt.Printf("Enter your bet, or 0 to quit (balance: $%d): ", balance)
 		fmt.Scanln(&bet)
 
@@ -50,7 +50,7 @@ func GetSpin(reel []string, rows int, cols int) [][]string {
 	for col := 0; col < cols; col++ {
 		selected := map[int]bool{}
 		for row := 0; row < rows; row++ {
-			for true {
+			for {
 				index := GetRandNum(0, len(reel)-1)
 				_, exists := selected[index]
 				if !exists {
