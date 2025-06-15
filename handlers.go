@@ -40,10 +40,7 @@ func handleSpin(w http.ResponseWriter, r *http.Request) {
 	bet, err := strconv.ParseUint(betStr, 10, 32)
 	if err != nil || bet == 0 {
 		w.Header().Set(contentTypeHeader, contentTypeHTML)
-		w.Write([]byte(`
-            <div class="text-red-500 bg-[#1e3a8a] p-2 rounded text-center mb-4">
-                Please enter a valid bet amount
-            </div>`))
+		w.Write([]byte(`<div class="bg-red-500 text-white p-2 rounded text-center">Please enter a valid bet amount</div>`))
 		return
 	}
 
@@ -51,7 +48,7 @@ func handleSpin(w http.ResponseWriter, r *http.Request) {
 	if uint(bet) > gameState.Balance {
 		w.Header().Set(contentTypeHeader, contentTypeHTML)
 		w.Write([]byte(fmt.Sprintf(`
-            <div class="text-red-500 bg-[#1e3a8a] p-2 rounded text-center mb-4">
+            <div class="bg-red-500 text-white p-2 rounded text-center">
                 Cannot bet more than current balance ($%d)
             </div>`, gameState.Balance)))
 		return
@@ -69,60 +66,58 @@ func handleSpin(w http.ResponseWriter, r *http.Request) {
 	}
 	gameState.Balance += totalWin
 
-	// Build slot grid HTML
-	var slotsHtml strings.Builder
+	// Prepare slot grid update
+	var slotHTML strings.Builder
 	for _, row := range spin {
 		for _, symbol := range row {
-			slotsHtml.WriteString(fmt.Sprintf(`
-                <div class="aspect-square bg-[#1e3a8a] rounded flex items-center justify-center text-xl font-bold">
-                    %s
-                </div>`, symbol))
+			slotHTML.WriteString(fmt.Sprintf(`
+                <div class="text-2xl font-bold p-4 slot-cell rounded-lg text-center">%s</div>`, symbol))
 		}
 	}
 
 	// Prepare response
-	var resultHtml strings.Builder
+	var resultHTML strings.Builder
 
 	// Win/loss message
 	if totalWin > 0 {
 		multiplier := totalWin / uint(bet)
-		resultHtml.WriteString(fmt.Sprintf(`
-            <div class="bg-green-500 text-white p-2 rounded text-center mb-4">
+		resultHTML.WriteString(fmt.Sprintf(`
+            <div class="bg-green-500 text-white p-2 rounded text-center">
                 Bet: $%d | Win: $%d | Multiplier: %dx
             </div>`, bet, totalWin, multiplier))
 	} else {
-		resultHtml.WriteString(fmt.Sprintf(`
-            <div class="bg-red-500 text-white p-2 rounded text-center mb-4">
+		resultHTML.WriteString(fmt.Sprintf(`
+            <div class="bg-red-500 text-white p-2 rounded text-center">
                 Bet: $%d | No win
             </div>`, bet))
 	}
 
-	// Out-of-band swaps for updates
-	resultHtml.WriteString(fmt.Sprintf(`
-        <div id="slot-grid" hx-swap-oob="true" class="grid grid-cols-3 gap-2 mb-6">
+	// HTMX out-of-band swaps
+	resultHTML.WriteString(fmt.Sprintf(`
+        <div id="slot-grid" hx-swap-oob="true" class="grid grid-cols-3 gap-4 mb-6">
             %s
-        </div>`, slotsHtml.String()))
+        </div>`, slotHTML.String()))
 
-	resultHtml.WriteString(fmt.Sprintf(`
-        <div id="balance-display" hx-swap-oob="true" class="text-2xl font-bold">
+	resultHTML.WriteString(fmt.Sprintf(`
+        <div id="balance" hx-swap-oob="true" class="text-2xl font-bold">
             $%d
         </div>`, gameState.Balance))
 
-	// Game over handling
+	// Game over check
 	if gameState.Balance == 0 {
-		resultHtml.WriteString(`
-            <div class="text-red-500 bg-[#1e3a8a] p-2 rounded text-center mb-4">
-                Game Over! Balance: $0
-            </div>
-            <button hx-post="/reset" 
-                    hx-target="#game-container"
-                    class="w-full bg-green-600 text-white font-bold py-2 rounded mt-2">
-                Reset Game ($200)
-            </button>`)
+		resultHTML.WriteString(`
+            <div class="mt-4">
+                <div class="bg-red-500 text-white p-2 rounded text-center mb-2">Game Over!</div>
+                <button hx-post="/reset" 
+                        hx-target="body"
+                        class="w-full bg-green-600 text-white font-bold py-2 rounded">
+                    Reset Game ($200)
+                </button>
+            </div>`)
 	}
 
 	w.Header().Set(contentTypeHeader, contentTypeHTML)
-	w.Write([]byte(resultHtml.String()))
+	w.Write([]byte(resultHTML.String()))
 }
 
 func handleReset(w http.ResponseWriter, r *http.Request) {
@@ -132,18 +127,5 @@ func handleReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gameState.Balance = 200
-
-	// Render initial game state
-	initialSlots := make([]string, 9)
-	for i := range initialSlots {
-		initialSlots[i] = "?"
-	}
-
-	data := map[string]interface{}{
-		"Balance": gameState.Balance,
-		"Slots":   initialSlots,
-	}
-
-	tmpl := template.Must(template.ParseFiles("templates/index.html"))
-	tmpl.Execute(w, data)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
