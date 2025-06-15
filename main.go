@@ -1,49 +1,59 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func getName() string {
-	name := ""
-
-	fmt.Println("Welcome to the Casino...")
-	fmt.Printf("Enter your name: ")
-	_, err := fmt.Scanln(&name)
-	if err != nil {
-		return ""
-	}
-
-	fmt.Printf("Welcome %s, let's play!\n", name)
-	return name
-}
-
-func getBet(balance uint) uint {
-	var bet uint
-
-	for true {
-		fmt.Printf("Enter your bet, or 0 to quit (balance: $%d): ", balance)
-		fmt.Scanln(&bet)
-
-		if bet > balance {
-			fmt.Println("Bet can not exceed balance")
-		} else {
-			break
+func generateSymbolArray(symbols map[string]uint) []string {
+	symbolArray := []string{}
+	for symbol, count := range symbols {
+		for i := uint(0); i < count; i++ {
+			symbolArray = append(symbolArray, symbol)
 		}
 	}
-	return bet
-
+	return symbolArray
 }
 
 func main() {
+
+	symbols := map[string]uint{
+		"A": 4,
+		"B": 7,
+		"C": 12,
+		"D": 20,
+	}
+	multipliers := map[string]uint{
+		"A": 20,
+		"B": 10,
+		"C": 5,
+		"D": 2,
+	}
+
+	symbolArr := generateSymbolArray(symbols)
+
 	balance := uint(200)
-	getName()
+	GetName()
 
 	for balance > 0 {
-		bet := getBet(balance)
+		bet := GetBet(balance)
 		if bet == 0 {
 			break
 		}
-		balance -= bet
-	}
-	fmt.Printf("You have $%d left to play with\n", balance)
 
+		balance -= bet
+		spin := GetSpin(symbolArr, 3, 3)
+		PrintSpin(spin)
+		winningLines := CheckWin(spin, multipliers)
+		fmt.Println(winningLines)
+		for i, multi := range winningLines {
+			win := multi * bet
+			balance += win
+			if multi > 0 {
+				fmt.Printf("You won $%d (%dx) on line %d\n", win, multi, i+1)
+			}
+		}
+
+	}
+
+	fmt.Printf("You have $%d left to play with\n", balance)
 }
